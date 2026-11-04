@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Moon Tuition – SAT Pack 4</title>
+<style>
+  :root {
+    --navy: #1a365d;
+    --blue: #2c5282;
+    --light: #f7fafc;
+    --card: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background: var(--light);
+    color: #2d3748;
+    line-height: 1.5;
+  }
+  header {
+    background: var(--navy);
+    color: white;
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  header h1 { font-size: 1.25rem; font-weight: 600; }
+  header span { font-size: 0.85rem; opacity: 0.85; }
+  .container { max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+  .card {
+    background: var(--card);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  h2 { color: var(--navy); margin-bottom: 1rem; }
+  .subjects { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .subject-btn, button.primary, button.secondary {
+    background: var(--blue);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+  button.primary { background: var(--navy); }
+  button.secondary { background: #4a5568; margin-left: 0.5rem; }
+  .subject-btn:hover, button.primary:hover { background: #2a4365; }
+  input[type="text"], input[type="password"] {
+    width: 100%;
+    padding: 0.6rem;
+    margin: 0.4rem 0 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 1rem;
+  }
+  .timer {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #c53030;
+    text-align: right;
+    margin-bottom: 1rem;
+  }
+  .question { margin-bottom: 1.25rem; }
+  .question p { margin-bottom: 0.5rem; font-weight: 500; }
+  .options label {
+    display: block;
+    padding: 0.5rem 0.75rem;
+    margin: 0.25rem 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .options label:hover { background: #edf2f7; }
+  .options input { margin-right: 0.5rem; }
+  .score { font-size: 1.25rem; font-weight: 600; color: var(--navy); margin: 1rem 0; }
+  .hidden { display: none; }
+  footer {
+    text-align: center;
+    padding: 1.5rem;
+    color: #718096;
+    font-size: 0.85rem;
+  }
+  .passage {
+    background: #edf2f7;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+  }
+  .user-list { margin-top: 1rem; font-size: 0.9rem; }
+  .user-list div { padding: 0.3rem 0; border-bottom: 1px solid #eee; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Moon Tuition – SAT Pack 4</h1>
+  <span id="header-user"></span>
+</header>
+
+<div class="container">
+  <div id="login" class="card">
+    <h2>SAT Pack 4 Login</h2>
+    <label>Username</label>
+    <input type="text" id="login-user" placeholder="Username">
+    <label>Password</label>
+    <input type="password" id="login-pass" placeholder="Password">
+    <button class="primary" onclick="login()">Login</button>
+  </div>
+
+  <div id="admin" class="card hidden">
+    <h2>Admin – Create Student</h2>
+    <label>New Username</label>
+    <input type="text" id="new-user" placeholder="Username">
+    <label>New Password</label>
+    <input type="password" id="new-pass" placeholder="Password">
+    <button class="primary" onclick="createUser()">Create Account</button>
+    <div class="user-list" id="user-list"></div>
+    <button class="secondary" onclick="logout()" style="margin-top:1rem;">Logout</button>
+  </div>
+
+  <div id="home" class="card hidden">
+    <h2>SAT Practice Pack 4</h2>
+    <p>Welcome. Select a subject. Each has 30 questions and a 15-minute limit.</p>
+    <div class="subjects" style="margin-top:1.5rem;">
+      <button class="subject-btn" onclick="startQuiz('maths')">Mathematics</button>
+      <button class="subject-btn" onclick="startQuiz('english')">English</button>
+    </div>
+    <button class="secondary" onclick="logout()" style="margin-top:1.5rem;">Logout</button>
+  </div>
+
+  <div id="quiz" class="card hidden">
+    <div class="timer" id="timer">15:00</div>
+    <h2 id="quiz-title">Quiz</h2>
+    <div id="questions"></div>
+    <button class="primary" onclick="submitQuiz()">Submit Answers</button>
+  </div>
+
+  <div id="results" class="card hidden">
+    <h2>Results</h2>
+    <div class="score" id="score"></div>
+    <div id="feedback"></div>
+    <button class="primary" onclick="goHome()">Back to Subjects</button>
+  </div>
+</div>
+
+<footer>
+  Moon Tuition &nbsp;|&nbsp; www.moonmocktest.com &nbsp;|&nbsp; SAT Pack 4
+</footer>
+
+<script>
+const ADMIN_USER = "admin";
+const ADMIN_PASS = "admin123";
+const TIME_LIMIT = 15 * 60;
+let timerInterval = null;
+let timeLeft = TIME_LIMIT;
+let currentUser = null;
+
+function getUsers() {
+  return JSON.parse(localStorage.getItem("sat_pack4_users") || "{}");
+}
+function saveUsers(users) {
+  localStorage.setItem("sat_pack4_users", JSON.stringify(users));
+}
+
+function login() {
+  const user = document.getElementById("login-user").value.trim();
+  const pass = document.getElementById("login-pass").value;
+  if (user === ADMIN_USER && pass === ADMIN_PASS) {
+    currentUser = "admin";
+    showScreen("admin");
+    refreshUserList();
+    return;
+  }
+  const users = getUsers();
+  if (users[user] && users[user] === pass) {
+    currentUser = user;
+    document.getElementById("header-user").textContent = "Hi, " + user;
+    showScreen("home");
+  } else {
+    alert("Invalid username or password");
+  }
+}
+
+function createUser() {
+  const user = document.getElementById("new-user").value.trim();
+  const pass = document.getElementById("new-pass").value;
+  if (!user || !pass) return alert("Enter username and password");
+  const users = getUsers();
+  if (users[user]) return alert("Username already exists");
+  users[user] = pass;
+  saveUsers(users);
+  document.getElementById("new-user").value = "";
+  document.getElementById("new-pass").value = "";
+  refreshUserList();
+  alert("Account created");
+}
+
+function refreshUserList() {
+  const users = getUsers();
+  const list = document.getElementById("user-list");
+  list.innerHTML = "<strong>Existing Students:</strong><br>";
+  Object.keys(users).forEach(u => {
+    list.innerHTML += `<div>${u}</div>`;
+  });
+  if (Object.keys(users).length === 0) list.innerHTML += "<div>No students yet</div>";
+}
+
+function logout() {
+  currentUser = null;
+  document.getElementById("header-user").textContent = "";
+  showScreen("login");
+}
+
+function showScreen(id) {
+  ["login","admin","home","quiz","results"].forEach(s => {
+    document.getElementById(s).classList.add("hidden");
+  });
+  document.getElementById(id).classList.remove("hidden");
+}
+
+const quizzes = {
+  maths: {
+    title: "Mathematics",
+    questions: [
+      { q: "If 6x − 9 = 21, what is x?", options: ["4", "5", "6", "7"], answer: 1 },
+      { q: "What is 40% of 75?", options: ["25", "30", "35", "40"], answer: 1 },
+      { q: "Area of a triangle with base 14 and height 6:", options: ["42", "84", "20", "48"], answer: 0 },
+      { q: "Simplify: 4(x + 2) − 5", options: ["4x + 3", "4x + 8", "4x − 3", "5x + 3"], answer: 0 },
+      { q: "A bus travels 210 miles in 3.5 hours. Speed?", options: ["50 mph", "60 mph", "70 mph", "80 mph"], answer: 1 },
+      { q: "Slope of y = −x + 5?", options: ["1", "−1", "5", "−5"], answer: 1 },
+      { q: "Solve: 3x/4 = 9", options: ["6", "12", "18", "27"], answer: 1 },
+      { q: "Mean of 2, 5, 8, 11, 14:", options: ["7", "8", "9", "10"], answer: 1 },
+      { q: "What is 5/6 − 1/3?", options: ["1/2", "4/6", "1/3", "2/3"], answer: 0 },
+      { q: "Perimeter of regular pentagon side 6 cm:", options: ["24", "30", "36", "12"], answer: 1 },
+      { q: "If y = x² + 2 and x = 5, y = ?", options: ["25", "27", "30", "7"], answer: 1 },
+      { q: "What is 18% of 50?", options: ["6", "8", "9", "12"], answer: 2 },
+      { q: "Solve: 5x + 3 = 2x + 18", options: ["x = 3", "x = 5", "x = 4", "x = 6"], answer: 1 },
+      { q: "Volume of cube with side 6:", options: ["36", "108", "216", "72"], answer: 2 },
+      { q: "Which is larger: 0.65 or 2/3?", options: ["0.65", "2/3", "equal", "cannot tell"], answer: 1 },
+      { q: "Y-intercept of y = 3x − 8?", options: ["3", "−8", "8", "−3"], answer: 1 },
+      { q: "$150 item with 20% discount. Sale price?", options: ["$30", "$120", "$125", "$130"], answer: 1 },
+      { q: "Simplify: (3x)(4x)", options: ["7x", "12x", "12x²", "7x²"], answer: 2 },
+      { q: "Median of 4, 6, 8, 10, 12:", options: ["6", "8", "10", "7"], answer: 1 },
+      { q: "What is 4³?", options: ["12", "16", "64", "48"], answer: 2 },
+      { q: "Solve: 2(x + 5) = 18", options: ["x = 4", "x = 6", "x = 8", "x = 9"], answer: 0 },
+      { q: "Area of circle radius 3 (π ≈ 3.14):", options: ["9.42", "18.84", "28.26", "6"], answer: 2 },
+      { q: "0.75 as a fraction in simplest form:", options: ["3/4", "75/100", "1/2", "7/10"], answer: 0 },
+      { q: "If a = −2 and b = 4, 2a + b² = ?", options: ["12", "20", "8", "16"], answer: 0 },
+      { q: "Ratio 3:7. Total 40. Larger share?", options: ["12", "16", "28", "30"], answer: 2 },
+      { q: "Circumference diameter 12 (π ≈ 3.14):", options: ["18.84", "37.68", "113.04", "24"], answer: 1 },
+      { q: "Solve: 8x − 5 = 3x + 15", options: ["x = 3", "x = 4", "x = 5", "x = 6"], answer: 1 },
+      { q: "Equivalent to 6(2x − 1)?", options: ["12x − 1", "12x − 6", "8x − 6", "12x + 6"], answer: 1 },
+      { q: "Range of 5, 8, 8, 12, 16:", options: ["8", "11", "12", "16"], answer: 1 },
+      { q: "What is 25% of 84?", options: ["18", "21", "24", "28"], answer: 1 }
+    ]
+  },
+  english: {
+    title: "English",
+    passage: "Remote work has become more common in many industries since 2020. Supporters say it gives employees greater flexibility and can reduce commuting time and costs. Employers sometimes report higher productivity and access to a wider talent pool. However, some managers express concern about teamwork and company culture when staff work from different locations. Surveys indicate that a growing number of workers prefer hybrid arrangements that combine days in the office with days at home.",
+    questions: [
+      { q: "What is the main idea of the passage?", options: ["Remote work should be banned", "Remote work has both benefits and challenges", "Everyone prefers the office", "Commuting is always better"], answer: 1 },
+      { q: "According to the passage, one benefit of remote work is:", options: ["more commuting", "greater flexibility", "less productivity", "smaller talent pool"], answer: 1 },
+      { q: "The word “flexibility” most nearly means:", options: ["rigidity", "adaptability", "cost", "location"], answer: 1 },
+      { q: "What do some managers worry about?", options: ["Higher salaries", "Teamwork and company culture", "Too much productivity", "Shorter hours"], answer: 1 },
+      { q: "The author’s tone is best described as:", options: ["strongly negative", "balanced and informative", "humorous", "angry"], answer: 1 },
+      { q: "Which sentence is grammatically correct?", options: ["Employees prefers flexibility.", "Employees prefer flexibility.", "Employees preferring flexibility.", "Employees has preferred flexibility."], answer: 1 },
+      { q: "Choose the correctly spelled word:", options: ["seperate", "separate", "seperete", "separat"], answer: 1 },
+      { q: "One advantage mentioned for employers is:", options: ["smaller talent pool", "access to a wider talent pool", "more commuting costs", "less productivity"], answer: 1 },
+      { q: "The word “hybrid” in this context means:", options: ["fully remote", "a mix of office and home", "only office", "outdoor work"], answer: 1 },
+      { q: "Which detail supports employee preference?", options: ["Managers are concerned", "Surveys show many prefer hybrid arrangements", "Commuting is reduced", "Productivity is higher"], answer: 1 },
+      { q: "Identify the subject: “Supporters say it gives flexibility.”", options: ["Supporters", "it", "flexibility", "say"], answer: 0 },
+      { q: "Synonym for “reduce”:", options: ["increase", "lessen", "expand", "raise"], answer: 1 },
+      { q: "The passage suggests hybrid work is:", options: ["unpopular", "preferred by a growing number of workers", "impossible", "only for managers"], answer: 1 },
+      { q: "Correct punctuation:", options: ["Work changed, however challenges remain.", "Work changed; however, challenges remain.", "Work changed however challenges remain.", "Work changed: however challenges remain."], answer: 1 },
+      { q: "“Talent pool” refers to:", options: ["swimming area", "available skilled workers", "office space", "commuting routes"], answer: 1 },
+      { q: "Which is an adjective in the first sentence?", options: ["remote", "work", "become", "common"], answer: 0 },
+      { q: "Opposite of “higher”:", options: ["greater", "lower", "more", "increased"], answer: 1 },
+      { q: "Commuting time is mentioned as something that can be:", options: ["increased", "reduced", "eliminated completely always", "ignored"], answer: 1 },
+      { q: "Correct verb: “Surveys ___ a preference for hybrid work.”", options: ["indicates", "indicate", "indicating", "has indicate"], answer: 1 },
+      { q: "Main contrast is between:", options: ["benefits of remote work and concerns about teamwork", "old and new offices", "cities and countryside", "managers and employees only"], answer: 0 },
+      { q: "Correct spelling:", options: ["arrangment", "arrangement", "arangement", "arrangemant"], answer: 1 },
+      { q: "What can be inferred?", options: ["The author opposes all remote work", "The author presents a balanced view", "The author wants everyone in the office", "The author ignores surveys"], answer: 1 },
+      { q: "“Productivity” most nearly means:", options: ["laziness", "output or efficiency", "commuting", "salary"], answer: 1 },
+      { q: "Best title:", options: ["Why Offices Are Best", "Remote Work: Benefits and Challenges", "Only Hybrid Work", "Commuting Costs"], answer: 1 },
+      { q: "Preposition in “from different locations”:", options: ["from", "different", "locations", "none"], answer: 0 },
+      { q: "The passage implies company culture is:", options: ["irrelevant", "a concern for some managers", "always better remotely", "only about salaries"], answer: 1 },
+      { q: "Passive voice example:", options: ["Employees prefer hybrid work.", "Hybrid work is preferred by many employees.", "Managers express concern.", "Surveys indicate trends."], answer: 1 },
+      { q: "Synonym for “common”:", options: ["rare", "widespread", "unusual", "difficult"], answer: 1 },
+      { q: "Primary purpose:", options: ["to entertain", "to inform about remote and hybrid work", "to advertise a product", "to tell a personal story"], answer: 1 },
+      { q: "Correct form: “A growing number of workers ___ hybrid options.”", options: ["prefers", "prefer", "preferring", "has preferred"], answer: 1 }
+    ]
+  }
+};
+
+let currentQuiz = null;
+let currentAnswers = [];
+
+function updateTimer() {
+  const minutes = Math.floor(timeLeft / 60);
+  const seconds = timeLeft % 60;
+  document.getElementById("timer").textContent = 
+    `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+  if (timeLeft <= 0) {
+    clearInterval(timerInterval);
+    submitQuiz();
+  } else {
+    timeLeft--;
+  }
+}
+
+function startQuiz(key) {
+  currentQuiz = quizzes[key];
+  currentAnswers = new Array(currentQuiz.questions.length).fill(-1);
+  timeLeft = TIME_LIMIT;
+  showScreen("quiz");
+  document.getElementById("quiz-title").textContent = currentQuiz.title;
+  
+  if (timerInterval) clearInterval(timerInterval);
+  updateTimer();
+  timerInterval = setInterval(updateTimer, 1000);
+
+  let html = "";
+  if (currentQuiz.passage) {
+    html += `<div class="passage">${currentQuiz.passage}</div>`;
+  }
+  currentQuiz.questions.forEach((item, i) => {
+    html += `<div class="question">
+      <p>${i+1}. ${item.q}</p>
+      <div class="options">`;
+    item.options.forEach((opt, j) => {
+      html += `<label><input type="radio" name="q${i}" value="${j}" onchange="currentAnswers[${i}]=${j}"> ${opt}</label>`;
+    });
+    html += `</div></div>`;
+  });
+  document.getElementById("questions").innerHTML = html;
+}
+
+function submitQuiz() {
+  if (timerInterval) clearInterval(timerInterval);
+  let correct = 0;
+  let feedback = "<h3 style='margin:1rem 0 0.5rem;color:#1a365d;'>Review</h3>";
+  currentQuiz.questions.forEach((item, i) => {
+    const user = currentAnswers[i];
+    const isCorrect = user === item.answer;
+    if (isCorrect) correct++;
+    const userText = user >= 0 ? item.options[user] : "(no answer)";
+    const correctText = item.options[item.answer];
+    const mark = isCorrect ? "✅" : "❌";
+    feedback += `<div style="margin-bottom:0.75rem;padding:0.5rem;background:${isCorrect ? '#f0fff4' : '#fff5f5'};border-radius:6px;">
+      <p><strong>Q${i+1}.</strong> ${item.q} ${mark}</p>
+      <p>Your answer: <em>${userText}</em></p>
+      <p>Correct answer: <strong>${correctText}</strong></p>
+    </div>`;
+  });
+  showScreen("results");
+  document.getElementById("score").textContent = `Score: ${correct} / ${currentQuiz.questions.length}`;
+  document.getElementById("feedback").innerHTML = feedback;
+}
+
+function goHome() {
+  if (timerInterval) clearInterval(timerInterval);
+  showScreen("home");
+}
+</script>
+</body>
+</html>
